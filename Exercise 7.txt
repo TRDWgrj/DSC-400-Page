@@ -1,0 +1,119 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import explode
+from pyspark.sql.functions import split
+
+spark = SparkSession \
+    .builder \
+    .appName("Assignment 7.1") \
+    .getOrCreate()
+
+lines = spark \
+    .readStream \
+    .format("socket") \
+    .option("host", "localhost") \
+    .option("port", 9999) \
+    .load()
+
+# Split the lines into words
+words = lines.select(
+   explode(
+       split(lines.value, " ")
+   ).alias("word")
+)
+
+# Generate running word count
+wordCounts = words.groupBy("word").count()
+
+try:
+    query = wordCounts \
+        .writeStream \
+        .outputMode("complete") \
+        .format("console") \
+        .start()
+
+    query.awaitTermination()
+except KeyboardInterrupt:
+    print('Stopping query')
+	
+
+
+#I got this to work, however it doesn't appear possible to output the result in Notebook. 
+#I'm getting to this conclusion after referring to these forums: 
+#https://stackoverflow.com/questions/55840424/spark-streaming-awaittermination-in-jupyter-notebook https://stackoverflow.com/questions/61463554/structured-streaming-output-is-not-showing-on-jupyter-notebook
+
+
+
+#One of my outputs from terminal:
+
+-------------------------------------------
+Batch: 1
+-------------------------------------------
++--------+-----+
+|    word|count|
++--------+-----+
+|  online|    1|
+|   parts|    1|
+|  Title:|    1|
+|      If|    1|
+|  anyone|    1|
+|    copy|    1|
+|     not|    1|
+|    will|    1|
+|      by|    1|
+|   using|    1|
+|     you|    3|
+|     for|    1|
+|   under|    1|
+|      in|    2|
+|  States|    1|
+|   Homer|    1|
+|Odyssey,|    1|
+|    with|    2|
+|   terms|    1|
+| Odyssey|    1|
++--------+-----+
+#only showing top 20 rows
+
+
+# Generate running word count where count > 2
+wordCounts = words.groupBy("word").count().where('count > 2')
+
+try:
+    query = wordCounts \
+        .writeStream \
+        .outputMode("complete") \
+        .format("console") \
+        .start()
+
+    query.awaitTermination()
+except KeyboardInterrupt:
+    print('Stopping query')
+	
+	
+netcat input: here is multiple words for you to see that multiple words are possible to establish in the words count for count
+
+output:
+
+Batch: 0
+-------------------------------------------
++----+-----+
+|word|count|
++----+-----+
++----+-----+
+
+-------------------------------------------
+Batch: 1
+-------------------------------------------
++----+-----+
+|word|count|
++----+-----+
++----+-----+
+
+-------------------------------------------
+Batch: 2
+-------------------------------------------
++-----+-----+
+| word|count|
++-----+-----+
+|words|    3|
++-----+-----+
